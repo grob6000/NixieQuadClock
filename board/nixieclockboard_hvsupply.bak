@@ -37,7 +37,7 @@ $Descr A4 11693 8268
 encoding utf-8
 Sheet 2 2
 Title ""
-Date "21 jan 2015"
+Date "18 mar 2015"
 Rev ""
 Comp ""
 Comment1 ""
@@ -152,8 +152,6 @@ Connection ~ 2950 4350
 Wire Wire Line
 	2500 3950 2500 4350
 Connection ~ 2500 4350
-Wire Wire Line
-	1950 2800 1950 2050
 Connection ~ 1950 2050
 Text Label 1300 3750 0    60   ~ 0
 RVN
@@ -355,4 +353,6 @@ Text HLabel 5150 1850 1    60   Input ~ 0
 VIN
 Text GLabel 1150 4350 0    60   Input ~ 0
 GND
+Wire Wire Line
+	1950 2050 1950 2800
 $EndSCHEMATC

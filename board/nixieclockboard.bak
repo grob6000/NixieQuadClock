@@ -36,9 +36,9 @@ EELAYER END
 $Descr A3 16535 11693
 encoding utf-8
 Sheet 1 2
-Title ""
-Date "18 mar 2015"
-Rev ""
+Title "NIXIEBOARD"
+Date "5 apr 2015"
+Rev "V2"
 Comp ""
 Comment1 ""
 Comment2 ""
@@ -282,13 +282,13 @@ S2
 Text Label 3450 2650 0    60   ~ 0
 S3
 Text Label 3450 3800 0    60   ~ 0
-BIT3
-Text Label 3450 3700 0    60   ~ 0
-BIT2
-Text Label 3450 3600 0    60   ~ 0
-BIT1
-Text Label 3450 3500 0    60   ~ 0
 BIT0
+Text Label 3450 3700 0    60   ~ 0
+BIT1
+Text Label 3450 3600 0    60   ~ 0
+BIT2
+Text Label 3450 3500 0    60   ~ 0
+BIT3
 Text Label 2950 6000 2    60   ~ 0
 MISO
 Text Label 2950 6100 2    60   ~ 0
@@ -346,13 +346,13 @@ F 3 "" H 4150 2600 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Text Label 2200 9800 2    60   ~ 0
-BIT1
-Text Label 2200 9700 2    60   ~ 0
 BIT2
+Text Label 2200 9700 2    60   ~ 0
+BIT1
 Text Label 2200 9400 2    60   ~ 0
-BIT3
-Text Label 2200 9500 2    60   ~ 0
 BIT0
+Text Label 2200 9500 2    60   ~ 0
+BIT3
 $Comp
 L K155ID1 U2
 U 1 1 4DE38AD2
@@ -1712,4 +1712,10 @@ Text Notes 14150 800  0    60   ~ 0
 REVISION NOTES V2 2015-03-19\n(A) R21-R26 WERE 8K2
 Text Notes 9850 9850 0    60   ~ 0
 (A)
+Text Notes 14150 1100 0    60   ~ 0
+REVISION NOTES V2.1 2015-04-05\n(B) BIT0-3 LABELS INVERTED
+Text Notes 3700 3650 0    60   ~ 0
+(B)
+Text Notes 1800 9600 0    60   ~ 0
+(B)
 $EndSCHEMATC

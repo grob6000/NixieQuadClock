@@ -37,7 +37,7 @@ $Descr A3 16535 11693
 encoding utf-8
 Sheet 1 2
 Title "NIXIEBOARD"
-Date "18 mar 2015"
+Date "5 apr 2015"
 Rev "V2"
 Comp ""
 Comment1 ""
@@ -237,7 +237,7 @@ F 3 "" H 6200 9700 60  0001 C CNN
 	1    6200 9700
 	1    0    0    -1  
 $EndComp
-Text Label 13350 1400 0    60   ~ 0
+Text Label 11200 2650 0    60   ~ 0
 VSUP
 Text Label 2200 9600 2    60   ~ 0
 VCC
@@ -282,13 +282,13 @@ S2
 Text Label 3450 2650 0    60   ~ 0
 S3
 Text Label 3450 3800 0    60   ~ 0
-BIT3
-Text Label 3450 3700 0    60   ~ 0
-BIT2
-Text Label 3450 3600 0    60   ~ 0
-BIT1
-Text Label 3450 3500 0    60   ~ 0
 BIT0
+Text Label 3450 3700 0    60   ~ 0
+BIT1
+Text Label 3450 3600 0    60   ~ 0
+BIT2
+Text Label 3450 3500 0    60   ~ 0
+BIT3
 Text Label 2950 6000 2    60   ~ 0
 MISO
 Text Label 2950 6100 2    60   ~ 0
@@ -346,13 +346,13 @@ F 3 "" H 4150 2600 60  0001 C CNN
 	1    0    0    -1  
 $EndComp
 Text Label 2200 9800 2    60   ~ 0
-BIT1
-Text Label 2200 9700 2    60   ~ 0
 BIT2
+Text Label 2200 9700 2    60   ~ 0
+BIT1
 Text Label 2200 9400 2    60   ~ 0
-BIT3
-Text Label 2200 9500 2    60   ~ 0
 BIT0
+Text Label 2200 9500 2    60   ~ 0
+BIT3
 $Comp
 L K155ID1 U2
 U 1 1 4DE38AD2
@@ -418,12 +418,12 @@ Connection ~ 1300 3800
 $Comp
 L CONN_2 P1
 U 1 1 54AF9004
-P 12700 1500
-F 0 "P1" V 12650 1500 40  0000 C CNN
-F 1 "PWR" V 12750 1500 40  0000 C CNN
-F 2 "" H 12700 1500 60  0000 C CNN
-F 3 "" H 12700 1500 60  0000 C CNN
-	1    12700 1500
+P 10550 2750
+F 0 "P1" V 10500 2750 40  0000 C CNN
+F 1 "PWR" V 10600 2750 40  0000 C CNN
+F 2 "" H 10550 2750 60  0000 C CNN
+F 3 "" H 10550 2750 60  0000 C CNN
+	1    10550 2750
 	-1   0    0    1   
 $EndComp
 $Comp
@@ -693,10 +693,10 @@ Wire Wire Line
 Text Label 1200 2300 0    60   ~ 0
 GND
 Wire Wire Line
-	13350 1400 13050 1400
+	11200 2650 10900 2650
 Wire Wire Line
-	13050 1600 13350 1600
-Text Notes 12700 1200 0    60   ~ 0
+	10900 2850 11200 2850
+Text Notes 10550 2450 0    60   ~ 0
 POWER INPUT
 Text Notes 12300 4300 0    60   ~ 0
 5V REGULATOR
@@ -1545,7 +1545,7 @@ Text Label 3950 9900 0    60   ~ 0
 C3
 Text Label 3000 8800 0    60   ~ 0
 GND
-Text Label 13350 1600 0    60   ~ 0
+Text Label 11200 2850 0    60   ~ 0
 GND
 Text Label 4900 3400 2    60   ~ 0
 GND
@@ -1708,8 +1708,14 @@ Connection ~ 5100 2550
 Wire Wire Line
 	5100 3200 5100 3400
 Connection ~ 5100 3400
-Text Notes 14150 800  0    60   ~ 0
+Text Notes 14250 800  0    60   ~ 0
 REVISION NOTES V2 2015-03-19\n(A) R21-R26 WERE 8K2
 Text Notes 9850 9850 0    60   ~ 0
 (A)
+Text Notes 14250 1100 0    60   ~ 0
+REVISION NOTES V2.1 2015-04-05\n(B) BIT0-3 LABELS INVERTED.\n         CIRCUIT UNCHANGED.
+Text Notes 3700 3650 0    60   ~ 0
+(B)
+Text Notes 1800 9600 0    60   ~ 0
+(B)
 $EndSCHEMATC

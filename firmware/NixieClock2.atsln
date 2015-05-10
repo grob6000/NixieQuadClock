@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Atmel Studio Solution File, Format Version 11.00
+Project("{54F91283-7BC4-4236-8FF9-10F437C3AD48}") = "NixieClock2", "NixieClock2.cproj", "{A1E2FEB2-947D-47AB-8672-4ACADB74620D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|AVR = Debug|AVR
+		Release|AVR = Release|AVR
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A1E2FEB2-947D-47AB-8672-4ACADB74620D}.Debug|AVR.ActiveCfg = Debug|AVR
+		{A1E2FEB2-947D-47AB-8672-4ACADB74620D}.Debug|AVR.Build.0 = Debug|AVR
+		{A1E2FEB2-947D-47AB-8672-4ACADB74620D}.Release|AVR.ActiveCfg = Release|AVR
+		{A1E2FEB2-947D-47AB-8672-4ACADB74620D}.Release|AVR.Build.0 = Release|AVR
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

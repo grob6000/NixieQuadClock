@@ -45,3 +45,9 @@ Temporary Items
 # KiCad Files
 .bak
 *-cache.lib
+
+#3d printing output
+3dp/*
+
+#vs debug output
+firmware/Debug/*

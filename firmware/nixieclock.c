@@ -47,6 +47,11 @@ uint8_t buttonstate = BUTTONSTATE_NOREPEAT; // the current repeating state of th
 
 uint16_t debounceCount = 0xFFFF; // overflow counter for button debouncing (via timer0). diminishing counter, init to large value
 
+#ifdef ENABLE_BUZZER
+	uint16_t beepcount = 0;
+	uint16_t beepperiod = 0;
+#endif
+
 #ifdef ENABLE_EEPROM
 	
 	uint8_t ee_check_byte EEMEM = EEPROM_CHECK_BYTE; // check byte to differentiate between blank EEPROM (0xFF's) and a real config
@@ -123,6 +128,15 @@ uint16_t debounceCount = 0xFFFF; // overflow counter for button debouncing (via 
 	}
 
 #endif //ENABLE_EEPROM
+
+#ifdef ENABLE_BUZZER
+	// makes a beep sound for the specified number of display loop cycles (timer 2)
+	void MakeBeep(uint16_t beeptime)
+	{
+		beepcount = beeptime; // set displayloop countdown to specified value
+		BUZZER_ON(); // turn buzzer on
+	}
+#endif //ENABLE_BUZZER
 
 // starts timer 1 to count up for menu timeout
 void StartMenuTimeout()
@@ -480,6 +494,12 @@ void uartReceived(char data[], unsigned int length)
 			{
 				beeper_state = ALARM_OFF; // switch off alarm (and muting) completely, ready for next one!
 			}
+			#ifdef ENABLE_BUZZER
+				if (beeper_state == ALARM_ON) // alarm enabled, not muted
+				{
+					beepperiod = BEEP_PERIOD_COUNT; // start repeating beep
+				}
+			#endif //ENABLE_BUZZER
 		#endif
 		
 		UpdateDisplay(); // no harm in this
@@ -551,6 +571,20 @@ ISR(TIMER0_OVF_vect)
 		TCNT1 = 0x0000;
 		TIMER0_CLOCK_NONE();
 		debounceCount = BUTTON_BOUNCECOUNT;
+		
+		#ifdef ENABLE_BUZZER
+		if (beeper_state & ALARM_ON) // if alarm is sounding, hijacks button press to cancel
+		{
+			beeper_state |= ALARM_MUTE;
+			beepcount = 0; // immediately stop any current beep
+			beepperiod = 0; // cancel periodic beeping
+		}
+		else
+		#endif //ENABLE_BUZZER
+		{	
+		#ifdef ENABLE_BUZZER
+			MakeBeep(BEEP_CLICK_COUNT); // click to give auditory feedback of button press
+		#endif //ENABLE_BUZZER
 		
 		if (BALARM_ISPRESSED())
 		{
@@ -659,7 +693,7 @@ ISR(TIMER0_OVF_vect)
 			}
 			UpdateDisplay(); // update display in any case!			
 		}
-		
+		}
 	}
 }
 
@@ -671,7 +705,11 @@ ISR(TIMER1_OVF_vect)
 	
 	TIMER1_CLOCK_NONE(); // switch off timer1
 	TCNT1 = 0x0000; // reset counter
-		
+	
+	#ifdef ENABLE_BUZZER
+		MakeBeep(BEEP_SHORT_COUNT); // beep to indicate menu has exited
+	#endif //ENABLE_BUZZER
+	
 	switch (currentmode)
 	{
 		case MODE_SETTIMEZONE:
@@ -786,20 +824,29 @@ ISR(TIMER2_OVF_vect)
 	currentdigit%=NUM_DIGITS;	// wraps around
 	
 	// alarm beeper
-	static uint16_t beepcount = 0x00;
-	if (beeper_state == ALARM_ON) // i.e. on, but not muted!
+	if (beepcount > 0)
 	{
-		beepcount--;
-		if (beepcount == 0x0000)
-		{
-			BUZZER_TOG();
-			beepcount = ALARM_BEEPCOUNT;
-		}
+		beepcount--; // decrement beep counter
+		BUZZER_ON();
 	}
 	else
 	{
 		BUZZER_OFF(); // suppress! suppress!
-		beepcount = 0x0000;
+	}
+	
+	// cycle for repeating beeps (e.g. for alarm)
+	static uint16_t beepperiodcount = 0;
+	if (beepperiodcount > 0)
+	{
+		beepperiodcount--;
+	}
+	else
+	{
+		if (beepperiod > 0)
+		{
+			beepperiodcount = beepperiod;
+			MakeBeep(BEEP_PERIODIC_COUNT);
+		}
 	}
 	
 }

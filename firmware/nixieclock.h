@@ -22,13 +22,24 @@
 #define ENABLE_BUZZER // implements a buzzer/beeper for audible alarms
 #define ALARM_INCREMENT 5 // alarm setting increment, minutes
 #define TZ_INCREMENT 30 // timezone setting increment, minutes
+#define POWERONDELAY 200 // delay at startup to allow power/etc. to settle
+
 #define BUTTON_DEBOUNCE_MS 50 // debounce delay, in ms
 #define BUTTON_WAIT_MS 1000 // delay between first press and repeating, in ms
 #define BUTTON_REPEAT_MS 125 // period of repeating, in ms
-#define POWERONDELAY 200 // delay at startup to allow power/etc. to settle
+
 #define BEEP_CLICK_MS 1 // beep length for clicks (button presses etc) in ms
-#define BEEP_SHORT_MS 10 // beep length for short beeps (save events, etc.)
-#define BEEP_LONG_MS 250 // beep length for long beeps (alerts, errors, etc.)
+#define BEEP_SHORT_MS 10 // beep length for short beeps (save events, etc.) in ms
+#define BEEP_LONG_MS 250 // beep length for long beeps (alerts, errors, etc.) in ms
+#define BEEP_PERIOD_MS 500 // period of repeating beeps (alarms) in ms
+#define BEEP_PERIODIC_MS 250 // length of periodic beep in ms
+
+// converted to a count
+#define BEEP_CLICK_COUNT (F_CPU/256/TIMER2_DIV*BEEP_CLICK_MS/1000)
+#define BEEP_SHORT_COUNT (F_CPU/256/TIMER2_DIV*BEEP_SHORT_MS/1000)
+#define BEEP_LONG_COUNT (F_CPU/256/TIMER2_DIV*BEEP_LONG_MS/1000)
+#define BEEP_PERIOD_COUNT (F_CPU/256/TIMER2_DIV*BEEP_PERIOD_MS/1000)
+#define BEEP_PERIODIC_COUNT (F_CPU/256/TIMER2_DIV*BEEP_PERIODIC_MS/1000)
 
 #define BUTTON_BOUNCECOUNT (F_CPU/256/TIMER0_DIV*BUTTON_DEBOUNCE_MS/1000) // sets sensitivity of button debounce | larger value --> larger delay | please reference to F_CPU
 #define BUTTON_WAITCOUNT (F_CPU/256/TIMER0_DIV*BUTTON_WAIT_MS/1000) // sets the repeat delay of +/- buttons | please reference to F_CPU
@@ -38,11 +49,6 @@
 #define DIGIT_ENABLE 0x40
 #define DIGIT_OFF 0x00
 #define DIGIT_BLANK 0x0F
-
-// clock divisor for display timer
-#define TIMER2_CLOCK_NONE() TCCR2B&=~0b00000111 // no clock
-#define TIMER2_CLOCK_ON() TCCR2B|=0b00000101 // f_cpu/128
-#define TIMER2_DIV 256 // used for calculating delays, please set accordingly
 
 // handy functions to switch on/off pins by name "P"
 // e.g. ON(LCOMMA) --> PORT_LCOMMA |= (1 << BIT_LCOMMA)

@@ -11,6 +11,82 @@
 #ifndef VFDTUBECLOCK_H_
 #define VFDTUBECLOCK_H_
 
+// configuration
+#define NUM_DIGITS 4 // number of digits provided
+#define ALARM_COUNT 4 // number of alarms enabled, maximum 8
+#define ENABLE_TIMEZONE // turns timezone correction on and off (used for GPS / UTC time sources)
+//#define ENABLE_VALIDITYMODE // turns on masking mode when GPS is invalid
+//#define ENABLE_TESTMODE // allows startup test mode
+#define ENABLE_EEPROM // implements saving setting to eeprom
+#define ENABLE_ALARM // implements alarm clock
+#define ENABLE_BUZZER // implements a buzzer/beeper for audible alarms
+#define ALARM_INCREMENT 5 // alarm setting increment, minutes
+#define TZ_INCREMENT 30 // timezone setting increment, minutes
+#define BUTTON_DEBOUNCE_MS 50 // debounce delay, in ms
+#define BUTTON_WAIT_MS 1000 // delay between first press and repeating, in ms
+#define BUTTON_REPEAT_MS 125 // period of repeating, in ms
+#define POWERONDELAY 200 // delay at startup to allow power/etc. to settle
+#define BEEP_CLICK_MS 1 // beep length for clicks (button presses etc) in ms
+#define BEEP_SHORT_MS 10 // beep length for short beeps (save events, etc.)
+#define BEEP_LONG_MS 250 // beep length for long beeps (alerts, errors, etc.)
+
+#define BUTTON_BOUNCECOUNT (F_CPU/256/TIMER0_DIV*BUTTON_DEBOUNCE_MS/1000) // sets sensitivity of button debounce | larger value --> larger delay | please reference to F_CPU
+#define BUTTON_WAITCOUNT (F_CPU/256/TIMER0_DIV*BUTTON_WAIT_MS/1000) // sets the repeat delay of +/- buttons | please reference to F_CPU
+#define BUTTON_REPEATCOUNT (F_CPU/256/TIMER0_DIV*BUTTON_REPEAT_MS/1000) // sets the repeat speed of the +/- buttons | please reference to F_CPU
+
+// number masking
+#define DIGIT_ENABLE 0x40
+#define DIGIT_OFF 0x00
+#define DIGIT_BLANK 0x0F
+
+// clock divisor for display timer
+#define TIMER2_CLOCK_NONE() TCCR2B&=~0b00000111 // no clock
+#define TIMER2_CLOCK_ON() TCCR2B|=0b00000101 // f_cpu/128
+#define TIMER2_DIV 256 // used for calculating delays, please set accordingly
+
+// handy functions to switch on/off pins by name "P"
+// e.g. ON(LCOMMA) --> PORT_LCOMMA |= (1 << BIT_LCOMMA)
+#define ON(P) PORT_ ## P |= (1 << BIT_ ## P)
+#define OFF(P) PORT_ ## P &= ~(1 << BIT_ ## P)
+#define TOGGLE(P) PORT_ ## P ^= (1 << BIT_ ## P)
+
+// pins - segments
+// see board V2.1 note (B): pins inverted
+#define PORT_BIT0 PORTD
+#define BIT_BIT0 7
+#define PORT_BIT1 PORTD
+#define BIT_BIT1 6
+#define PORT_BIT2 PORTD
+#define BIT_BIT2 5
+#define PORT_BIT3 PORTD
+#define BIT_BIT3 4
+#define PORT_LCOMMA PORTB
+#define BIT_LCOMMA 1
+#define PORT_RCOMMA PORTB
+#define BIT_RCOMMA 0
+
+// pins - digits
+#define PORT_DIGIT0 PORTC
+#define BIT_DIGIT0 0
+#define PORT_DIGIT1 PORTC
+#define BIT_DIGIT1 1
+#define PORT_DIGIT2 PORTC
+#define BIT_DIGIT2 2
+#define PORT_DIGIT3 PORTC
+#define BIT_DIGIT3 3
+#define PORT_DIGIT4 PORTC
+#define BIT_DIGIT4 4
+#define PORT_DIGIT5 PORTC
+#define BIT_DIGIT5 5
+
+// pins - i/o
+#define PORT_BUZZ PORTB
+#define BIT_BUZZ 2
+#define PORT_BUTTONA PORTD
+#define BIT_BUTTONA 2
+#define PORT_BUTTONB PORTD
+#define PIN_BUTTONB 3
+
 // clock divisor for debounce timer
 #define TIMER0_CLOCK_NONE() TCCR0B&=~0b00000111 // no clock
 #define TIMER0_CLOCK_ON() TCCR0B|=0b00000100 // f_cpu/128
@@ -27,9 +103,9 @@
 #define TIMER2_DIV 256 // used for calculating delays, please set accordingly
 
 // various modes of operation
-#define MODE_CATHODETRAIN 0 // mode to cycle through digits slowly
+#define MODE_DISPLAYTEST 0 // mode to cycle through digits slowly
 #define MODE_SHOWTIME 1 // normal display mode, shows 6-digit time on tubes
-//#define MODEDIV_SHOW 2 // mode division: any mode less than this is a display mode (therefore any mode higher is a menu mode)
+#define MODE_INVALIDFIX 2 // special mode to show when fix is invalid
 #define MODE_SELECTALARM 3 // menu to select which alarm to set
 #define MODE_SETALARMSTATE 4 // menu to set alarm state (i.e. switch it off without changing value)
 #define MODE_SETALARMTIME 5 // menu to set alarm time
@@ -70,20 +146,18 @@
 #define TZDIR_PLUS 0xD1 // positive timezone, e.g. UTC + 10:00
 #define TZDIR_MINUS 0xD0 // negative timezone, e.g. UTC - 02:30
 
-// alarmset uses special state chars for viewing in eeprom
-#define ALARM_SET 0xA1 // value for alarm set (on, will buzz)
-#define ALARM_CLEAR 0xA0 // value for alarm cleared (off, won't buzz)
-#define ALARM_MUTE 0xC0 // alarm muted
-#define ALARM_UNMUTE 0xC1 // alarm not muted
+// eeprom saving check value
+#define EEPROM_CHECK_BYTE 0xAA
 
-// state of beeper
-#define ALARMBEEP_A2 0xB2 // beeps fast
-#define ALARMBEEP_A1 0xB1 // beeps slow
-#define ALARMBEEP_OFF 0xB0 // not beeping RIGHT NOW
+// state of beeper (bitwise)
+#define ALARM_OFF 0x00
+#define ALARM_ON 0x01
+#define ALARM_MUTE 0x02
+#define ALARM_BEEPCOUNT 50 // in units of timer2 period!
 
 // button states
 #define BUTTONSTATE_NOREPEAT 0x00 // button is NOT to repeat
-#define BUTTONSTATE_REPEATWAIT 0x01 // button has activated once, and is now waiting to begin repeating
+#define BUTTONSTATE_WAITING 0x01 // button has activated once, and is now waiting to begin repeating
 #define BUTTONSTATE_REPEATING 0x02 // button is now repeating
 
 // convenient value - number of minutes in a day (i.e. 60*24)
@@ -98,11 +172,13 @@ void SetSegments(unsigned char character);
 void DisplayTime();
 void DisplayTimeZone();
 void DisplayAlarmState();
-//void DisplayAlarmSelection();
-//void DisplayAlarmTime();
+void DisplayAlarmSelection();
+void DisplayAlarmTime();
 void UpdateDisplay();
 void IncTz();
 void DecTz();
+void TzUp();
+void TzDown();
 void SaveEepromSettings();
 
 #endif /* VFDTUBECLOCK_H_ */

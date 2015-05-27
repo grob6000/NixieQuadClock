@@ -15,84 +15,9 @@
 #include "uart.h" // parameters and config for uart connection
 //#include "config.h" // configurable parameters for this code
 #include "nixieclock.h" // other parameters and defines for this code
-#include "hexstring.h"
-#include "decstring.h"
 
-// configuration
-#define NUM_DIGITS 4 // number of digits provided
-#define ALARM_COUNT 4 // number of alarms enabled, maximum 8
-#define ENABLE_TIMEZONE // turns timezone correction on and off (used for GPS / UTC time sources)
-#define ENABLE_VALIDITYMODE // turns on masking mode when GPS is invalid
-//#define ENABLE_TESTMODE // allows startup test mode
-#define ENABLE_EEPROM // implements saving setting to eeprom
-#define ENABLE_ALARM // implements alarm clock
-#define ALARM_INCREMENT 5 // alarm setting increment, minutes
-#define TZ_INCREMENT 30 // timezone setting increment, minutes
-#define BUTTON_DEBOUNCE_MS 50 // debounce delay, in ms
-#define BUTTON_REPEATEDELAY_MS 1000 // delay between first press and repeating, in ms
-#define BUTTON_REPEATPERIOD_MS 125 // period of repeating, in ms
-#define POWERONDELAY 200 // delay at startup to allow power/etc. to settle
-
-#define BUTTON_BOUNCECOUNT (F_CPU/256/TIMER0_DIV*BUTTON_DEBOUNCE_MS/1000) // sets sensitivity of button debounce | larger value --> larger delay | please reference to F_CPU
-#define BUTTON_REPEAT_DELAY (F_CPU/256/TIMER0_DIV*BUTTON_REPEAT_DELAY/1000) // sets the repeat delay of +/- buttons | please reference to F_CPU
-#define BUTTON_REPEAT_PERIOD (F_CPU/256/TIMER0_DIV*BUTTON_REPEATPERIOD_MS/1000) // sets the repeat speed of the +/- buttons | please reference to F_CPU
-
-// number masking
-#define DIGIT_ENABLE 0x40
-#define DIGIT_OFF 0x00
-#define DIGIT_BLANK 0x0F
-
-// clock divisor for display timer
-#define TIMER2_CLOCK_NONE() TCCR2B&=~0b00000111 // no clock
-#define TIMER2_CLOCK_ON() TCCR2B|=0b00000101 // f_cpu/128
-#define TIMER2_DIV 256 // used for calculating delays, please set accordingly
-
-// handy functions to switch on/off pins by name "P"
-// e.g. ON(LCOMMA) --> PORT_LCOMMA |= (1 << BIT_LCOMMA)
-#define ON(P) PORT_ ## P |= (1 << BIT_ ## P)
-#define OFF(P) PORT_ ## P &= ~(1 << BIT_ ## P)
-#define TOGGLE(P) PORT_ ## P ^= (1 << BIT_ ## P)
-
-// pins - segments
-// see board V2.1 note (B): pins inverted
-#define PORT_BIT0 PORTD
-#define BIT_BIT0 7
-#define PORT_BIT1 PORTD
-#define BIT_BIT1 6
-#define PORT_BIT2 PORTD
-#define BIT_BIT2 5
-#define PORT_BIT3 PORTD
-#define BIT_BIT3 4
-#define PORT_LCOMMA PORTB
-#define BIT_LCOMMA 1
-#define PORT_RCOMMA PORTB
-#define BIT_RCOMMA 0
-
-// pins - digits
-#define PORT_DIGIT0 PORTC
-#define BIT_DIGIT0 0
-#define PORT_DIGIT1 PORTC
-#define BIT_DIGIT1 1
-#define PORT_DIGIT2 PORTC
-#define BIT_DIGIT2 2
-#define PORT_DIGIT3 PORTC
-#define BIT_DIGIT3 3
-#define PORT_DIGIT4 PORTC
-#define BIT_DIGIT4 4
-#define PORT_DIGIT5 PORTC
-#define BIT_DIGIT5 5
-
-// pins - i/o
-#define PORT_BUZZ PORTB
-#define BIT_BUZZ 2
-#define PORT_BUTTONA PORTD
-#define BIT_BUTTONA 2
-#define PORT_BUTTONB PORTD
-#define PIN_BUTTONB 3
-	
-// buffer to hold current characters (nixie format)
-uint8_t characters[NUM_DIGITS] = { 0x00 };
-	
+// global parameters
+uint8_t characters[NUM_DIGITS] = { 0x00 }; // buffer to hold current characters (nixie format)
 uint8_t hour = 0x00; // current hour (0 to 23)
 uint8_t minute = 0x00; // current minute (0 to 59)
 uint8_t second = 0x00; // current second (0 to 59)
@@ -106,14 +31,14 @@ uint8_t second = 0x00; // current second (0 to 59)
 	#endif
 #endif
 
-uint8_t currentmode = MODE_SHOWTIME;
-
-uint8_t fixValidity = '?';
+uint8_t currentmode = MODE_SHOWTIME; // the current display/menu mode
+uint8_t buttonstate = BUTTONSTATE_NOREPEAT; // the current repeating state of the button
 
 #ifdef ENABLE_ALARM
 	uint8_t alarm_states = 0x00; // bits used to hold current alarm on/off states: up to 8.
 	uint16_t alarm_times[ALARM_COUNT] = { 0x0000 };
 	uint8_t selectedalarm = 0;
+	uint8_t beeper_state = ALARM_OFF;
 	#ifdef ENABLE_EEPROM
 		uint8_t ee_alarm_states EEMEM = 0x00;
 		uint16_t ee_alarm_times[ALARM_COUNT] EEMEM = {0x00};
@@ -123,6 +48,9 @@ uint8_t fixValidity = '?';
 uint16_t debounceCount = 0xFFFF; // overflow counter for button debouncing (via timer0). diminishing counter, init to large value
 
 #ifdef ENABLE_EEPROM
+	
+	uint8_t ee_check_byte EEMEM = EEPROM_CHECK_BYTE; // check byte to differentiate between blank EEPROM (0xFF's) and a real config
+	
 	void SaveEepromSettings()
 	{
 		#ifdef ENABLE_TIMEZONE
@@ -139,55 +67,83 @@ uint16_t debounceCount = 0xFFFF; // overflow counter for button debouncing (via 
 				eeprom_update_word(&ee_alarm_times[i], alarm_times[i]);
 			}
 		#endif
+		
+		eeprom_update_byte(&ee_check_byte, EEPROM_CHECK_BYTE);
 	}
 
 	void LoadEepromSettings()
 	{
 		uint8_t tempbyte = 0x00;
 		uint8_t tempword = 0x00;
-		#ifdef ENABLE_TIMEZONE
-			// read timezone - error check
-			tempbyte = eeprom_read_byte(&ee_tzdir);
-			if (tempbyte == TZDIR_MINUS)
-			{
-				tzdir = TZDIR_MINUS;
-			}
-			else
-			{
-				tzdir = TZDIR_PLUS;
-			}
-			tempword = eeprom_read_word(&ee_tz);
-			if ((tempword <= (MINUTESINADAY/2)) && ((tempword % TZ_INCREMENT) == 0)) // check both maximum value and increment
-			{
-				tz = tempword;
-			}
-		#endif //ENABLE_TIMEZONE
+		tempbyte = eeprom_read_byte(&ee_check_byte);
+		if (tempbyte == EEPROM_CHECK_BYTE)
+		{
+			// settings likely valid - read and sanity check as usual
+			#ifdef ENABLE_TIMEZONE
+				// read timezone - error check
+				tempbyte = eeprom_read_byte(&ee_tzdir);
+				if (tempbyte == TZDIR_MINUS)
+				{
+					tzdir = TZDIR_MINUS;
+				}
+				else
+				{
+					tzdir = TZDIR_PLUS;
+				}
+				tempword = eeprom_read_word(&ee_tz);
+				//if ((tempword <= (MINUTESINADAY/2)) && ((tempword % TZ_INCREMENT) == 0)) // check both maximum value and increment
+				{
+					tz = tempword;
+				}
+			#endif //ENABLE_TIMEZONE
 		
-		#ifdef ENABLE_ALARM
-			// read alarmstates
-			tempbyte = eeprom_read_byte(&ee_alarm_states);
-			// read alarm times
-			for (uint8_t i = 0; i < ALARM_COUNT; i++)
-			{
-				tempword = eeprom_read_word(&ee_alarm_times[i]);
-				if ((tempword < MINUTESINADAY) && ((tempword % ALARM_INCREMENT) == 0))
+			#ifdef ENABLE_ALARM
+				// read alarmstates
+				tempbyte = eeprom_read_byte(&ee_alarm_states);
+				// read alarm times
+				for (uint8_t i = 0; i < ALARM_COUNT; i++)
 				{
-					alarm_times[i] = tempword;
+					tempword = eeprom_read_word(&ee_alarm_times[i]);
+					if ((tempword < MINUTESINADAY) && ((tempword % ALARM_INCREMENT) == 0))
+					{
+						alarm_times[i] = tempword;
+					}
+					if (tempbyte & (1<<i))
+					{
+						alarm_states |= (1<<i);
+					}
 				}
-				if (tempbyte & (1<<i))
-				{
-					alarm_states |= (1<<i);
-				}
-			}
-		#endif //ENABLE_ALARM
+			#endif //ENABLE_ALARM
+		}
+		else
+		{
+			// settings likely not valid (i.e. new flash!) - save to update to currently loaded values
+			SaveEepromSettings();
+		}
 	}
 
 #endif //ENABLE_EEPROM
 
+// starts timer 1 to count up for menu timeout
 void StartMenuTimeout()
 {
 	TCNT1 = 0x0000; // reset counter to zero
 	TIMER1_CLOCK_ON();
+}
+
+// starts timer0 for a repeating button event
+void StartButtonRepeatTimer()
+{
+	TIMER0_CLOCK_ON();
+	if (buttonstate == BUTTONSTATE_NOREPEAT)
+	{
+		debounceCount = BUTTON_WAITCOUNT;
+	}
+	else // either wait or repeating
+	{
+		buttonstate = BUTTONSTATE_REPEATING;
+		debounceCount = BUTTON_REPEATCOUNT;
+	}
 }
 
 // sets cathode outputs to specified character, via K155ID1
@@ -256,34 +212,34 @@ void SetSegments(unsigned char character)
 
 
 
-void DisplayTime()
-{
-	// validitymode
-	#ifdef ENABLE_VALIDITYMODE
-	if (fixValidity != FIX_VALID)
+#ifdef ENABLE_VALIDITYMODE
+	// validitymode - displays rolling commas while GPS fix is invalid
+	void DisplayInvalidFix()
 	{
-		// rolling commas!
 		for (uint8_t i = 0; i < NUM_DIGITS; i++)
 		{
 			characters[i] = DIGIT_BLANK;
 		}
-		characters[second % NUM_DIGITS] = DIGIT_ENABLE | COMMAL | DIGIT_BLANK;		
+		// can use time as GPS is still updating
+		characters[second % NUM_DIGITS] = DIGIT_ENABLE | COMMAL | DIGIT_BLANK;
 	}
-	else
-	#endif //ENABLE_VALIDITYMODE
-	{
-		// set display to current time
-		#if (NUM_DIGITS >= 4)
-		characters[0] = DIGIT_ENABLE | (hour / 10);
-		characters[1] = DIGIT_ENABLE | (hour % 10);
-		characters[2] = DIGIT_ENABLE | (minute / 10);
-		characters[3] = DIGIT_ENABLE | (minute % 10);
-		#endif
-		#if (NUM_DIGITS >= 6)
-			characters[4] = DIGIT_ENABLE | (second / 10);
-			characters[5] = DIGIT_ENABLE | (second % 10);		
-		#endif
+#endif //ENABLE_VALIDITYMODE
+
+// show current time (and any other constant info, e.g. alarm states) on display
+void DisplayTime()
+{
+	#if (NUM_DIGITS >= 4)
+	characters[0] = DIGIT_ENABLE | (hour / 10);
+	characters[1] = DIGIT_ENABLE | (hour % 10);
+	characters[2] = DIGIT_ENABLE | (minute / 10);
+	characters[3] = DIGIT_ENABLE | (minute % 10);
+	#endif
+	#if (NUM_DIGITS >= 6)
+		characters[4] = DIGIT_ENABLE | (second / 10);
+		characters[5] = DIGIT_ENABLE | (second % 10);		
+	#endif
 	
+	#ifdef ENABLE_ALARM
 		for (uint8_t i = 0; i < ALARM_COUNT; i++)
 		{
 			if (alarm_states & (1<<i))
@@ -291,13 +247,13 @@ void DisplayTime()
 				characters[i] |= COMMAL;
 			}
 		}
-	}
+	#endif
 }
 
 #ifdef ENABLE_TIMEZONE
+	// displays timezone in first four digits
 	void DisplayTimezone()
 	{
-		// displays timezone in first four digits
 		characters[0] = DIGIT_ENABLE | (tz / 600);
 		characters[1] = DIGIT_ENABLE | ((tz / 60) % 10);
 		characters[2] = DIGIT_ENABLE | ((tz % 60) / 10);
@@ -308,8 +264,7 @@ void DisplayTime()
 		}
 	}
 	
-	// increment timezone absolute value by one unit (see config.h)
-	// top out at 720 minutes (i.e. UTC +/- 12)
+	// increment timezone absolute value by one unit (see config.h) - top out at 720 minutes (i.e. UTC +/- 12)
 	void IncTz()
 	{
 		tz += TZ_INCREMENT;
@@ -319,8 +274,7 @@ void DisplayTime()
 		}
 	}
 
-	// decrement timezone absolute value by one unit (see config.h)
-	// bottom out at 0 minutes (i.e. UTC + 00)
+	// decrement timezone absolute value by one unit (see config.h) - bottom out at 0 minutes (i.e. UTC + 00)
 	void DecTz()
 	{
 		if (tz <= TZ_INCREMENT)
@@ -333,6 +287,7 @@ void DisplayTime()
 		}
 	}
 	
+	// increase tz by TZ_INCREMENT (including negative/positive state)
 	void TzUp()
 	{
 		if (tz == 0x0000)
@@ -350,6 +305,7 @@ void DisplayTime()
 		}
 	}
 	
+	// decrease tz by TZ_INCREMENT (including negative/positive state)
 	void TzDown()
 	{
 		if (tz == 0x0000)
@@ -370,30 +326,32 @@ void DisplayTime()
 #endif //ENABLE_TIMEZONE
 
 
+// displays nothing
 void DisplayBlank()
 {
-	// displays nothing
 	for (uint8_t i = 0; i < NUM_DIGITS; i++)
 	{
 		characters[i] = DIGIT_BLANK;
 	}
 }
 
+#ifdef ENABLE_ALARM
+
+// displays selected alarm number in digit0
 void DisplayAlarmSelection()
 {
-	// displays selected alarm number in digit0
-	characters[0] = DIGIT_ENABLE | selectedalarm;
+	characters[0] = DIGIT_ENABLE | (selectedalarm +	1); // alarms count from 1...
 	for (uint8_t i = 1; i < NUM_DIGITS; i++)
 	{
 		characters[i] = DIGIT_BLANK;
 	}
 }
 
+// displays on/off state of selected alarm in digit1, alongside alarm selection in digit0
 void DisplayAlarmState()
 {
-	// displays on/off state of selected alarm in digit 2
-	characters[0] = DIGIT_ENABLE | selectedalarm;
-	if (alarm_states & (1<<selectedalarm))
+	DisplayAlarmSelection(); // reuse this code, includes blanking!
+	if (alarm_states & (1<<selectedalarm)) // add alarm state to next digit
 	{
 		characters[1] = DIGIT_ENABLE | 0x01; // show 1
 	}
@@ -401,21 +359,27 @@ void DisplayAlarmState()
 	{
 		characters[1] = DIGIT_ENABLE | 0x00; // show 0
 	}
-	for (uint8_t i = 2; i < NUM_DIGITS; i++)
-	{
-		characters[i] = DIGIT_BLANK;
-	}	
 }
 
+// displays alarm time in first four digits (4 digit mode) or with other info in 6+ digit mode
 void DisplayAlarmTime()
 {
-	// displays alarm time in first four digits
-	characters[0] = DIGIT_ENABLE | (alarm_times[selectedalarm] / 600);
-	characters[1] = DIGIT_ENABLE | ((alarm_times[selectedalarm] / 60) % 10);
-	characters[2] = DIGIT_ENABLE | ((alarm_times[selectedalarm] % 60) / 10);
-	characters[3] = DIGIT_ENABLE | (alarm_times[selectedalarm] % 10);	
+	#if NUM_DIGITS >= 6
+		DisplayAlarmState(); // reuse alarm state
+		characters[2] = DIGIT_ENABLE | (alarm_times[selectedalarm] / 600);
+		characters[3] = DIGIT_ENABLE | ((alarm_times[selectedalarm] / 60) % 10);
+		characters[4] = DIGIT_ENABLE | ((alarm_times[selectedalarm] % 60) / 10);
+		characters[5] = DIGIT_ENABLE | (alarm_times[selectedalarm] % 10);	
+	#else
+		characters[0] = DIGIT_ENABLE | (alarm_times[selectedalarm] / 600);
+		characters[1] = DIGIT_ENABLE | ((alarm_times[selectedalarm] / 60) % 10);
+		characters[2] = DIGIT_ENABLE | ((alarm_times[selectedalarm] % 60) / 10);
+		characters[3] = DIGIT_ENABLE | (alarm_times[selectedalarm] % 10);
+	#endif
 	
 }
+
+#endif //ENABLE_ALARM
 
 void UpdateDisplay()
 {
@@ -424,9 +388,17 @@ void UpdateDisplay()
 	case MODE_SHOWTIME:
 		DisplayTime();
 		break;
+#ifdef ENABLE_VALIDITYMODE
+	case MODE_INVALIDFIX:
+		DisplayInvalidFix();
+		break;
+#endif
+#ifdef ENABLE_TIMEZONE
 	case MODE_SETTIMEZONE:
 		DisplayTimezone();
 		break;
+#endif //ENABLE_TIMEZONE
+#ifdef ENABLE_ALARM		
 	case MODE_SELECTALARM:
 		DisplayAlarmSelection();
 		break;
@@ -436,6 +408,7 @@ void UpdateDisplay()
 	case MODE_SETALARMTIME:
 		DisplayAlarmTime();
 		break;
+#endif //ENABLE_ALARM
 	default:
 		DisplayBlank();
 		break;
@@ -477,34 +450,39 @@ void uartReceived(char data[], unsigned int length)
 		// update time to reflect new hours and minutes
 		hour = hoursandminutes / 60;
 		minute = hoursandminutes % 60;
-			
-		// detect if fix is valid
-		fixValidity = data[18];
 		
-		/*	
-		//sound alarm if minutes line up and alarm is set
-		if ((hoursandminutes == alarm1time)&&(alarm1state == ALARM_SET))
-		{
-			// slow beeper for alarm 1
-			alarmbeep = ALARMBEEP_A1;
-		}
-		else if ((hoursandminutes == alarm2time)&&(alarm2state == ALARM_SET))
-		{
-			// fast beeper for alarm 2
-			alarmbeep = ALARMBEEP_A2;
-		}
-		else
-		{
-			alarmbeep = ALARMBEEP_OFF;
-			alarmmute = ALARM_UNMUTE; // if there is no alarm, make sure the mute is disabled!
-		}
-		*/
-			
-		if (currentmode == MODE_SHOWTIME)
-		{
-			// set display to current time
-			DisplayTime();
-		}
+		#ifdef ENABLE_VALIDITYMODE
+			// detect if fix is valid
+			//fixValidity = data[18];
+			if ((data[18] != FIX_VALID) && (currentmode == MODE_SHOWTIME))
+			{
+				currentmode = MODE_INVALIDFIX;
+			}
+			else if (currentmode == MODE_INVALIDFIX) // fix is valid, mode is not SHOWTIME, and mode is INVALIDFIX:
+			{
+				currentmode = MODE_SHOWTIME; // gotta get out of invalid mode!
+			}
+		#endif
+		
+		#ifdef ENABLE_ALARM
+			beeper_state &= ~ALARM_ON; // bitwise switch off alarm
+			for (uint8_t i = 0; i < ALARM_COUNT; i++)
+			{
+				if (alarm_states & (1<<i))
+				{
+					if (hoursandminutes == alarm_times[i])
+					{
+						beeper_state |= ALARM_ON; // bitwise switch on alarm
+					}
+				}
+			}
+			if (!(beeper_state & ALARM_ON)) // if alarm is not on (i.e. no matches in above routine)
+			{
+				beeper_state = ALARM_OFF; // switch off alarm (and muting) completely, ready for next one!
+			}
+		#endif
+		
+		UpdateDisplay(); // no harm in this
 			
 	}
 	else if ((data[5] == '0') && (data[7] == '1'))
@@ -535,7 +513,8 @@ ISR(INT0_vect)
 		// rising edge - button released
 		TIMER0_CLOCK_NONE(); // disable debounce timer
 		debounceCount = BUTTON_BOUNCECOUNT; // reset counter
-	}		
+	}
+	buttonstate = BUTTONSTATE_NOREPEAT; // reset repeating mode - this is a release or new press!		
 	
 }	
 
@@ -555,7 +534,7 @@ ISR(INT1_vect)
 		TIMER0_CLOCK_NONE(); // disable debounce timer
 		debounceCount = BUTTON_BOUNCECOUNT; // reset counter
 	}		
-	
+	buttonstate = BUTTONSTATE_NOREPEAT; // reset repeating mode - this is a release or new press!
 }
 
 
@@ -579,21 +558,29 @@ ISR(TIMER0_OVF_vect)
 			switch (currentmode)
 			{
 				case MODE_SHOWTIME:
+#ifdef ENABLE_VALIDITYMODE
+				case MODE_INVALIDFIX:
+#endif //ENABLE_VALIDITYMODE
 					// enter alarm setup
 					currentmode = MODE_SELECTALARM;
 					StartMenuTimeout();
 					break;
+#ifdef ENABLE_TIMEZONE
 				case MODE_SETTIMEZONE:
 					// decrease timezone
 					TzDown();
+					StartButtonRepeatTimer(); // bounceable command
 					StartMenuTimeout();
 					break;
+#endif // ENABLE_TIMEZONE
+#ifdef ENABLE_ALARM
 				case MODE_SELECTALARM:
 					// decrease alarm selection
-					if (selectedalarm > 0x00)
+					if (selectedalarm > 0)
 					{
 						selectedalarm--;
 					}
+					StartButtonRepeatTimer(); // bounceable command
 					StartMenuTimeout();
 					break;
 				case MODE_SETALARMSTATE:
@@ -612,7 +599,9 @@ ISR(TIMER0_OVF_vect)
 						alarm_times[selectedalarm] -= ALARM_INCREMENT;
 					}
 					StartMenuTimeout();
+					StartButtonRepeatTimer(); // bounceable command
 					break;
+#endif //ENABLE_ALARM
 				default:
 					currentmode = MODE_SHOWTIME;
 					break;
@@ -625,20 +614,30 @@ ISR(TIMER0_OVF_vect)
 			switch (currentmode)
 			{
 				case MODE_SHOWTIME:
+#ifdef ENABLE_VALIDITYMODE
+				case MODE_INVALIDFIX:
+#endif // ENABLE_VALIDITYMODE
 					// enter timezone setup
 					currentmode = MODE_SETTIMEZONE;
+					StartMenuTimeout();
 					break;
+#ifdef ENABLE_TIMEZONE
 				case MODE_SETTIMEZONE:
 					// increase timezone
 					TzUp();
+					StartButtonRepeatTimer(); // bounceable command
 					StartMenuTimeout();
 					break;
+#endif // ENABLE_TIMEZONE
+#ifdef ENABLE_ALARM
 				case MODE_SELECTALARM:
 					// increase alarm selection
-					if (selectedalarm < ALARM_COUNT)
+					selectedalarm++;
+					if (selectedalarm >= ALARM_COUNT)
 					{
-						selectedalarm++;
+						selectedalarm = ALARM_COUNT - 1;
 					}
+					StartButtonRepeatTimer(); // bounceable command
 					StartMenuTimeout();
 					break;
 				case MODE_SETALARMSTATE:
@@ -650,8 +649,10 @@ ISR(TIMER0_OVF_vect)
 					// increase alarm time
 					alarm_times[selectedalarm] += ALARM_INCREMENT;
 					alarm_times[selectedalarm] %= MINUTESINADAY;
+					StartButtonRepeatTimer(); // bounceable command
 					StartMenuTimeout();
 					break;
+#endif //ENABLE_ALARM
 				default:
 					currentmode = MODE_SHOWTIME;
 					break;
@@ -783,6 +784,23 @@ ISR(TIMER2_OVF_vect)
 	previousdigit = currentdigit;
 	currentdigit++;
 	currentdigit%=NUM_DIGITS;	// wraps around
+	
+	// alarm beeper
+	static uint16_t beepcount = 0x00;
+	if (beeper_state == ALARM_ON) // i.e. on, but not muted!
+	{
+		beepcount--;
+		if (beepcount == 0x0000)
+		{
+			BUZZER_TOG();
+			beepcount = ALARM_BEEPCOUNT;
+		}
+	}
+	else
+	{
+		BUZZER_OFF(); // suppress! suppress!
+		beepcount = 0x0000;
+	}
 	
 }
 

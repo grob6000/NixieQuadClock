@@ -103,18 +103,6 @@
     <Compile Include="config.h">
       <SubType>compile</SubType>
     </Compile>
-    <Compile Include="decstring.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="decstring.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="hexstring.c">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="hexstring.h">
-      <SubType>compile</SubType>
-    </Compile>
     <Compile Include="nixieclock.c">
       <SubType>compile</SubType>
     </Compile>

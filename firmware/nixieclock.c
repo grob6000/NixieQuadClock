@@ -79,7 +79,7 @@ uint16_t debounceCount = 0xFFFF; // overflow counter for button debouncing (via 
 	void LoadEepromSettings()
 	{
 		uint8_t tempbyte = 0x00;
-		uint8_t tempword = 0x00;
+		uint16_t tempword = 0x00;
 		tempbyte = eeprom_read_byte(&ee_check_byte);
 		if (tempbyte == EEPROM_CHECK_BYTE)
 		{
@@ -96,7 +96,7 @@ uint16_t debounceCount = 0xFFFF; // overflow counter for button debouncing (via 
 					tzdir = TZDIR_PLUS;
 				}
 				tempword = eeprom_read_word(&ee_tz);
-				//if ((tempword <= (MINUTESINADAY/2)) && ((tempword % TZ_INCREMENT) == 0)) // check both maximum value and increment
+				if ((tempword <= (MINUTESINADAY/2)) && ((tempword % TZ_INCREMENT) == 0)) // check both maximum value and increment
 				{
 					tz = tempword;
 				}
@@ -155,9 +155,9 @@ void StartButtonRepeatTimer()
 	}
 	else // either wait or repeating
 	{
-		buttonstate = BUTTONSTATE_REPEATING;
 		debounceCount = BUTTON_REPEATCOUNT;
 	}
+	buttonstate = BUTTONSTATE_REPEATING;
 }
 
 // sets cathode outputs to specified character, via K155ID1
@@ -523,19 +523,19 @@ void uartReceived(char data[], unsigned int length)
 // alarm button interrupt
 // note -- actual button press handled when debounce timer returns (see ISR(TIMER0_OVF_vec)...)
 ISR(INT0_vect)
-{
+{	
 	if (BALARM_ISPRESSED())
 	{
 		// falling edge - button pressed
 		debounceCount = BUTTON_BOUNCECOUNT; // reset counter
 		TIMER0_CLOCK_ON(); // enable debounce timer
-	} else {
+	}
+	else
+	{
 		// rising edge - button released
 		TIMER0_CLOCK_NONE(); // disable debounce timer
-		debounceCount = BUTTON_BOUNCECOUNT; // reset counter
 	}
-	buttonstate = BUTTONSTATE_NOREPEAT; // reset repeating mode - this is a release or new press!		
-	
+	buttonstate = BUTTONSTATE_NOREPEAT; // reset repeating mode - this is a release or new press!			
 }	
 
 
@@ -549,10 +549,11 @@ ISR(INT1_vect)
 		// falling edge - button pressed
 		debounceCount = BUTTON_BOUNCECOUNT; // reset counter
 		TIMER0_CLOCK_ON(); // enable debounce timer
-	} else {
+	}
+	else
+	{
 		// rising edge - button released
 		TIMER0_CLOCK_NONE(); // disable debounce timer
-		debounceCount = BUTTON_BOUNCECOUNT; // reset counter
 	}		
 	buttonstate = BUTTONSTATE_NOREPEAT; // reset repeating mode - this is a release or new press!
 }
@@ -567,10 +568,12 @@ ISR(TIMER0_OVF_vect)
 	{
 		// ... this is a valid button press
 		
-		// reset menu timeout counter & disable bounce counter
-		TCNT1 = 0x0000;
+		// disable bounce counter
 		TIMER0_CLOCK_NONE();
 		debounceCount = BUTTON_BOUNCECOUNT;
+		
+		// reset menu timeout counter
+		TCNT1 = 0x0000;
 		
 		#ifdef ENABLE_BUZZER
 		if (beeper_state & ALARM_ON) // if alarm is sounding, hijacks button press to cancel

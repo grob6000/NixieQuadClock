@@ -577,7 +577,7 @@ ISR(TIMER0_OVF_vect)
 		TCNT1 = 0x0000;
 		
 		#ifdef ENABLE_BUZZER
-		if (beeper_state & ALARM_ON) // if alarm is sounding, hijacks button press to cancel
+		if (beeper_state == ALARM_ON) // if alarm is sounding, hijacks button press to cancel
 		{
 			beeper_state |= ALARM_MUTE;
 			beepcount = 0; // immediately stop any current beep

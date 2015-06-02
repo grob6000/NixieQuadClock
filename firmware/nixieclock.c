@@ -134,7 +134,7 @@ uint16_t debounceCount = 0xFFFF; // overflow counter for button debouncing (via 
 	void MakeBeep(uint16_t beeptime)
 	{
 		beepcount = beeptime; // set displayloop countdown to specified value
-		BUZZER_ON(); // turn buzzer on
+		ON(BUZZ); // turn buzzer on
 	}
 #endif //ENABLE_BUZZER
 
@@ -148,6 +148,7 @@ void StartMenuTimeout()
 // starts timer0 for a repeating button event
 void StartButtonRepeatTimer()
 {
+	TCNT0 = 0x00;
 	TIMER0_CLOCK_ON();
 	if (buttonstate == BUTTONSTATE_NOREPEAT)
 	{
@@ -830,11 +831,11 @@ ISR(TIMER2_OVF_vect)
 	if (beepcount > 0)
 	{
 		beepcount--; // decrement beep counter
-		BUZZER_ON();
+		ON(BUZZ);
 	}
 	else
 	{
-		BUZZER_OFF(); // suppress! suppress!
+		OFF(BUZZ); // suppress! suppress!
 	}
 	
 	// cycle for repeating beeps (e.g. for alarm)

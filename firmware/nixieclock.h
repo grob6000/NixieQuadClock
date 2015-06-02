@@ -74,10 +74,6 @@
 #define DIGIT_OFF 0x00
 #define DIGIT_BLANK 0x0F
 
-// wrapped routine to check pin state of buttons
-#define BALARM_ISPRESSED() ((PIND&(1<<2))==0x00)
-#define BZONE_ISPRESSED() ((PIND&(1<<3))==0x00)
-
 // tzdir uses special state chars for viewing in eeprom
 #define TZDIR_PLUS 0xD1 // positive timezone, e.g. UTC + 10:00
 #define TZDIR_MINUS 0xD0 // negative timezone, e.g. UTC - 02:30

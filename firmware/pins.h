@@ -42,9 +42,11 @@
 #define PORT_BUZZ PORTB
 #define BIT_BUZZ 2
 #define PORT_BUTTONA PORTD
+#define PIN_BUTTONA PIND
 #define BIT_BUTTONA 2
 #define PORT_BUTTONB PORTD
-#define PIN_BUTTONB 3
+#define PIN_BUTTONB PIND
+#define BIT_BUTTONB 3
 
 // handy functions to switch on/off pins by name "P"
 // e.g. ON(LCOMMA) --> PORT_LCOMMA |= (1 << BIT_LCOMMA)

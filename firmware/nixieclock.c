@@ -515,7 +515,7 @@ void uartReceived(char data[], unsigned int length)
 // note -- actual button press handled when debounce timer returns (see ISR(TIMER0_OVF_vec)...)
 ISR(INT0_vect)
 {	
-	if (BALARM_ISPRESSED())
+	if (ISON(BUTTONA))
 	{
 		// falling edge - button pressed
 		debounceCount = BUTTON_BOUNCECOUNT; // reset counter
@@ -535,7 +535,7 @@ ISR(INT0_vect)
 // note -- actual button press handled when debounce timer returns (see ISR(TIMER0_OVF_vec)...)
 ISR(INT1_vect)
 {
-	if (BZONE_ISPRESSED())
+	if (ISON(BUTTONB))
 	{
 		// falling edge - button pressed
 		debounceCount = BUTTON_BOUNCECOUNT; // reset counter
@@ -576,7 +576,7 @@ ISR(TIMER0_OVF_vect)
 			
 		MakeClick(); // click for button press
 		
-		if (BALARM_ISPRESSED())
+		if (ISON(BUTTONA))
 		{
 			// alarm button press event
 			switch (currentmode)
@@ -632,7 +632,7 @@ ISR(TIMER0_OVF_vect)
 			}
 			UpdateDisplay(); // update display in any case!	
 		}
-		else if (BZONE_ISPRESSED())
+		else if (ISON(BUTTONB))
 		{	
 			// timezone button press event
 			switch (currentmode)

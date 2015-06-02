@@ -19,7 +19,6 @@
 //#define ENABLE_TESTMODE // allows startup test mode
 #define ENABLE_EEPROM // implements saving setting to eeprom
 #define ENABLE_ALARM // implements alarm clock
-#define ENABLE_BUZZER // implements a buzzer/beeper for audible alarms
 #define ALARM_INCREMENT 5 // alarm setting increment, minutes
 #define TZ_INCREMENT 30 // timezone setting increment, minutes
 #define POWERONDELAY 200 // delay at startup to allow power/etc. to settle
@@ -27,19 +26,6 @@
 #define BUTTON_DEBOUNCE_MS 50 // debounce delay, in ms
 #define BUTTON_WAIT_MS 1000 // delay between first press and repeating, in ms
 #define BUTTON_REPEAT_MS 125 // period of repeating, in ms
-
-#define BEEP_CLICK_MS 1 // beep length for clicks (button presses etc) in ms
-#define BEEP_SHORT_MS 10 // beep length for short beeps (save events, etc.) in ms
-#define BEEP_LONG_MS 250 // beep length for long beeps (alerts, errors, etc.) in ms
-#define BEEP_PERIOD_MS 500 // period of repeating beeps (alarms) in ms
-#define BEEP_PERIODIC_MS 250 // length of periodic beep in ms
-
-// converted to a count
-#define BEEP_CLICK_COUNT (F_CPU/256/TIMER2_DIV*BEEP_CLICK_MS/1000)
-#define BEEP_SHORT_COUNT (F_CPU/256/TIMER2_DIV*BEEP_SHORT_MS/1000)
-#define BEEP_LONG_COUNT (F_CPU/256/TIMER2_DIV*BEEP_LONG_MS/1000)
-#define BEEP_PERIOD_COUNT (F_CPU/256/TIMER2_DIV*BEEP_PERIOD_MS/1000)
-#define BEEP_PERIODIC_COUNT (F_CPU/256/TIMER2_DIV*BEEP_PERIODIC_MS/1000)
 
 #define BUTTON_BOUNCECOUNT (F_CPU/256/TIMER0_DIV*BUTTON_DEBOUNCE_MS/1000) // sets sensitivity of button debounce | larger value --> larger delay | please reference to F_CPU
 #define BUTTON_WAITCOUNT (F_CPU/256/TIMER0_DIV*BUTTON_WAIT_MS/1000) // sets the repeat delay of +/- buttons | please reference to F_CPU
@@ -49,49 +35,6 @@
 #define DIGIT_ENABLE 0x40
 #define DIGIT_OFF 0x00
 #define DIGIT_BLANK 0x0F
-
-// handy functions to switch on/off pins by name "P"
-// e.g. ON(LCOMMA) --> PORT_LCOMMA |= (1 << BIT_LCOMMA)
-#define ON(P) PORT_ ## P |= (1 << BIT_ ## P)
-#define OFF(P) PORT_ ## P &= ~(1 << BIT_ ## P)
-#define TOGGLE(P) PORT_ ## P ^= (1 << BIT_ ## P)
-
-// pins - segments
-// see board V2.1 note (B): pins inverted
-#define PORT_BIT0 PORTD
-#define BIT_BIT0 7
-#define PORT_BIT1 PORTD
-#define BIT_BIT1 6
-#define PORT_BIT2 PORTD
-#define BIT_BIT2 5
-#define PORT_BIT3 PORTD
-#define BIT_BIT3 4
-#define PORT_LCOMMA PORTB
-#define BIT_LCOMMA 1
-#define PORT_RCOMMA PORTB
-#define BIT_RCOMMA 0
-
-// pins - digits
-#define PORT_DIGIT0 PORTC
-#define BIT_DIGIT0 0
-#define PORT_DIGIT1 PORTC
-#define BIT_DIGIT1 1
-#define PORT_DIGIT2 PORTC
-#define BIT_DIGIT2 2
-#define PORT_DIGIT3 PORTC
-#define BIT_DIGIT3 3
-#define PORT_DIGIT4 PORTC
-#define BIT_DIGIT4 4
-#define PORT_DIGIT5 PORTC
-#define BIT_DIGIT5 5
-
-// pins - i/o
-#define PORT_BUZZ PORTB
-#define BIT_BUZZ 2
-#define PORT_BUTTONA PORTD
-#define BIT_BUTTONA 2
-#define PORT_BUTTONB PORTD
-#define PIN_BUTTONB 3
 
 // clock divisor for debounce timer
 #define TIMER0_CLOCK_NONE() TCCR0B&=~0b00000111 // no clock
@@ -117,10 +60,10 @@
 #define MODE_SETALARMTIME 5 // menu to set alarm time
 #define MODE_SETTIMEZONE 6 // menu to set timezone
 
-// wrapped buzzer control
-#define BUZZER_ON() PORTB|=(1<<2)
-#define BUZZER_OFF() PORTB&=~(1<<2)
-#define BUZZER_TOG() PORTB^=(1<<2) // toggles buzzer
+// state of beeper (bitwise)
+#define ALARM_OFF 0x00
+#define ALARM_ON 0x01
+#define ALARM_MUTE 0x02
 
 // comma mappings
 #define COMMAL (1<<4)
@@ -155,12 +98,6 @@
 // eeprom saving check value
 #define EEPROM_CHECK_BYTE 0xAA
 
-// state of beeper (bitwise)
-#define ALARM_OFF 0x00
-#define ALARM_ON 0x01
-#define ALARM_MUTE 0x02
-#define ALARM_BEEPCOUNT 50 // in units of timer2 period!
-
 // button states
 #define BUTTONSTATE_NOREPEAT 0x00 // button is NOT to repeat
 #define BUTTONSTATE_WAITING 0x01 // button has activated once, and is now waiting to begin repeating
@@ -173,7 +110,6 @@
 #define FIX_VALID 'A'
 
 // function prototypes
-void MakeBeep(unsigned int beepcount);
 void SetSegments(unsigned char character);
 void DisplayTime();
 void DisplayTimeZone();

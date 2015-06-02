@@ -12,9 +12,11 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 #include <avr/eeprom.h>
+#include "pins.h"
 #include "uart.h" // parameters and config for uart connection
 //#include "config.h" // configurable parameters for this code
 #include "nixieclock.h" // other parameters and defines for this code
+#include "sound.h"
 
 // global parameters
 uint8_t characters[NUM_DIGITS] = { 0x00 }; // buffer to hold current characters (nixie format)
@@ -46,11 +48,6 @@ uint8_t buttonstate = BUTTONSTATE_NOREPEAT; // the current repeating state of th
 #endif
 
 uint16_t debounceCount = 0xFFFF; // overflow counter for button debouncing (via timer0). diminishing counter, init to large value
-
-#ifdef ENABLE_BUZZER
-	uint16_t beepcount = 0;
-	uint16_t beepperiod = 0;
-#endif
 
 #ifdef ENABLE_EEPROM
 	
@@ -128,15 +125,6 @@ uint16_t debounceCount = 0xFFFF; // overflow counter for button debouncing (via 
 	}
 
 #endif //ENABLE_EEPROM
-
-#ifdef ENABLE_BUZZER
-	// makes a beep sound for the specified number of display loop cycles (timer 2)
-	void MakeBeep(uint16_t beeptime)
-	{
-		beepcount = beeptime; // set displayloop countdown to specified value
-		ON(BUZZ); // turn buzzer on
-	}
-#endif //ENABLE_BUZZER
 
 // starts timer 1 to count up for menu timeout
 void StartMenuTimeout()
@@ -491,16 +479,18 @@ void uartReceived(char data[], unsigned int length)
 					}
 				}
 			}
+			
 			if (!(beeper_state & ALARM_ON)) // if alarm is not on (i.e. no matches in above routine)
 			{
+				AlarmSoundOff();
 				beeper_state = ALARM_OFF; // switch off alarm (and muting) completely, ready for next one!
 			}
-			#ifdef ENABLE_BUZZER
-				if (beeper_state == ALARM_ON) // alarm enabled, not muted
-				{
-					beepperiod = BEEP_PERIOD_COUNT; // start repeating beep
-				}
-			#endif //ENABLE_BUZZER
+			
+			if (beeper_state == ALARM_ON) // alarm enabled, not muted
+			{
+				AlarmSoundOn(); // enable audible alarm
+			}
+			
 		#endif
 		
 		UpdateDisplay(); // no harm in this
@@ -576,19 +566,15 @@ ISR(TIMER0_OVF_vect)
 		// reset menu timeout counter
 		TCNT1 = 0x0000;
 		
-		#ifdef ENABLE_BUZZER
 		if (beeper_state & ALARM_ON) // if alarm is sounding, hijacks button press to cancel
 		{
 			beeper_state |= ALARM_MUTE;
-			beepcount = 0; // immediately stop any current beep
-			beepperiod = 0; // cancel periodic beeping
+			AlarmSoundOff(); // switch off alarm sound
 		}
 		else
-		#endif //ENABLE_BUZZER
 		{	
-		#ifdef ENABLE_BUZZER
-			MakeBeep(BEEP_CLICK_COUNT); // click to give auditory feedback of button press
-		#endif //ENABLE_BUZZER
+			
+		MakeClick(); // click for button press
 		
 		if (BALARM_ISPRESSED())
 		{
@@ -827,31 +813,7 @@ ISR(TIMER2_OVF_vect)
 	currentdigit++;
 	currentdigit%=NUM_DIGITS;	// wraps around
 	
-	// alarm beeper
-	if (beepcount > 0)
-	{
-		beepcount--; // decrement beep counter
-		ON(BUZZ);
-	}
-	else
-	{
-		OFF(BUZZ); // suppress! suppress!
-	}
-	
-	// cycle for repeating beeps (e.g. for alarm)
-	static uint16_t beepperiodcount = 0;
-	if (beepperiodcount > 0)
-	{
-		beepperiodcount--;
-	}
-	else
-	{
-		if (beepperiod > 0)
-		{
-			beepperiodcount = beepperiod;
-			MakeBeep(BEEP_PERIODIC_COUNT);
-		}
-	}
+	SoundTick();
 	
 }
 

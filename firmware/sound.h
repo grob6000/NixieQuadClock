@@ -18,6 +18,7 @@
 #define BEEP_PERIODIC_MS 250 // length of periodic beep in ms
 
 // convert config parameters (in ms) into a useable count
+#define TIMER2_DIV 256 // TO-DO: this should probably go in config
 #define BEEP_CLICK_COUNT (F_CPU/256/TIMER2_DIV*BEEP_CLICK_MS/1000)
 #define BEEP_SHORT_COUNT (F_CPU/256/TIMER2_DIV*BEEP_SHORT_MS/1000)
 #define BEEP_LONG_COUNT (F_CPU/256/TIMER2_DIV*BEEP_LONG_MS/1000)

@@ -8,8 +8,8 @@
 */
 
 
-#ifndef VFDTUBECLOCK_H_
-#define VFDTUBECLOCK_H_
+#ifndef NIXIECLOCK_H_
+#define NIXIECLOCK_H_
 
 // configuration
 #define NUM_DIGITS 4 // number of digits provided
@@ -68,19 +68,6 @@
 // comma mappings
 #define COMMAL (1<<4)
 #define COMMAR (1<<5)
-#define IND_A1_ON() characters[0]|=COMMAL
-#define IND_A1_OFF() characters[0]&=~COMMAL
-#define IND_A1_TOG() characters[0]^=COMMAL
-#define IND_A2_ON() characters[0]|=COMMAR
-#define IND_A2_OFF() characters[0]&=~COMMAR
-#define IND_A2_TOG() characters[0]^=COMMAR
-#define IND_POS_ON() characters[1]|=COMMAR
-#define IND_POS_OFF() characters[1]&=~COMMAR
-#define IND_NEG_ON() characters[1]|=COMMAL
-#define IND_NEG_OFF() characters[1]&=~COMMAL
-#define IND_FIX_ON() characters[5]|=COMMAR
-#define IND_FIX_OFF() characters[5]&=~COMMAR
-#define IND_FIX_TOG() characters[5]^=COMMAR
 
 // number masking
 #define DIGIT_ENABLE 0x40
@@ -123,4 +110,4 @@ void TzUp();
 void TzDown();
 void SaveEepromSettings();
 
-#endif /* VFDTUBECLOCK_H_ */
+#endif /* NIXIECLOCK_H_ */

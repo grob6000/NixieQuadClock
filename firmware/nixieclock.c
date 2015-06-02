@@ -13,9 +13,9 @@
 #include <util/delay.h>
 #include <avr/eeprom.h>
 #include "pins.h"
-#include "uart.h" // parameters and config for uart connection
 //#include "config.h" // configurable parameters for this code
 #include "nixieclock.h" // other parameters and defines for this code
+#include "uart.h" // parameters and config for uart connection
 #include "sound.h"
 
 // global parameters

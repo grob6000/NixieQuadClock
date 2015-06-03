@@ -566,7 +566,7 @@ ISR(TIMER0_OVF_vect)
 		// reset menu timeout counter
 		TCNT1 = 0x0000;
 		
-		if (beeper_state & ALARM_ON) // if alarm is sounding, hijacks button press to cancel
+		if (beeper_state == ALARM_ON) // if alarm is sounding, hijacks button press to cancel
 		{
 			beeper_state |= ALARM_MUTE;
 			AlarmSoundOff(); // switch off alarm sound

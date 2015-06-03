@@ -22,7 +22,7 @@ void AlarmSoundOff()
 	beepperiod = 0;
 }
 
-void MakeBeep(uint16_t beeptime)
+void MakeBeep()
 {
 	beepcount = BEEP_SHORT_COUNT; // set displayloop countdown to specified value
 	ON(BUZZ); // turn buzzer on

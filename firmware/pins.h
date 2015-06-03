@@ -53,5 +53,7 @@
 #define ON(P) PORT_ ## P |= (1 << BIT_ ## P)
 #define OFF(P) PORT_ ## P &= ~(1 << BIT_ ## P)
 #define TOGGLE(P) PORT_ ## P ^= (1 << BIT_ ## P)
+#define ISHIGH(P) PIN_ ## P & (1 << BIT_ ## P)
+#define ISLOW(P) !(PIN_ ## P & (1 << BIT_ ## P))
 
 #endif /* PINS_H_ */

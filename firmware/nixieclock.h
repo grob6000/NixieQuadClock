@@ -11,21 +11,7 @@
 #ifndef NIXIECLOCK_H_
 #define NIXIECLOCK_H_
 
-// configuration
-#define NUM_DIGITS 4 // number of digits provided
-#define ALARM_COUNT 4 // number of alarms enabled, maximum 8
-#define ENABLE_TIMEZONE // turns timezone correction on and off (used for GPS / UTC time sources)
-//#define ENABLE_VALIDITYMODE // turns on masking mode when GPS is invalid
-//#define ENABLE_TESTMODE // allows startup test mode
-#define ENABLE_EEPROM // implements saving setting to eeprom
-#define ENABLE_ALARM // implements alarm clock
-#define ALARM_INCREMENT 5 // alarm setting increment, minutes
-#define TZ_INCREMENT 30 // timezone setting increment, minutes
-#define POWERONDELAY 200 // delay at startup to allow power/etc. to settle
 
-#define BUTTON_DEBOUNCE_MS 50 // debounce delay, in ms
-#define BUTTON_WAIT_MS 1000 // delay between first press and repeating, in ms
-#define BUTTON_REPEAT_MS 125 // period of repeating, in ms
 
 #define BUTTON_BOUNCECOUNT (F_CPU/256/TIMER0_DIV*BUTTON_DEBOUNCE_MS/1000) // sets sensitivity of button debounce | larger value --> larger delay | please reference to F_CPU
 #define BUTTON_WAITCOUNT (F_CPU/256/TIMER0_DIV*BUTTON_WAIT_MS/1000) // sets the repeat delay of +/- buttons | please reference to F_CPU
@@ -38,18 +24,27 @@
 
 // clock divisor for debounce timer
 #define TIMER0_CLOCK_NONE() TCCR0B&=~0b00000111 // no clock
-#define TIMER0_CLOCK_ON() TCCR0B|=0b00000100 // f_cpu/128
-#define TIMER0_DIV 256 // used for calculating delays, please set accordingly
+#if (TIMER0_DIV == 256)
+	#define TIMER0_CLOCK_ON() TCCR0B|=0b00000100 // f_cpu/256
+#else
+	#error "Unknown value for TIMER0_DIV"
+#endif
 
 // clock divisor for menu timeout timer - 16-bit overflow only
 #define TIMER1_CLOCK_NONE() TCCR1B&=~0b00000111 // no clock
-#define TIMER1_CLOCK_ON() TCCR1B|=0b00000101 // f_cpu/1024
-#define TIMER1_DIV	1024 // used for calculating delays, please set accordingly
+#if TIMER1_DIV == 1024
+	#define TIMER1_CLOCK_ON() TCCR1B|=0b00000101 // f_cpu/1024
+#else
+	#error "Unkown value for TIMER1_DIV"
+#endif
 
 // clock divisor for display timer
 #define TIMER2_CLOCK_NONE() TCCR2B&=~0b00000111 // no clock
-#define TIMER2_CLOCK_ON() TCCR2B|=0b00000101 // f_cpu/128
-#define TIMER2_DIV 256 // used for calculating delays, please set accordingly
+#if TIMER2_DIV == 256
+	#define TIMER2_CLOCK_ON() TCCR2B|=0b00000101 // f_cpu/128
+#else
+	#error "Unknown value for TIMER2_DIV"
+#endif
 
 // various modes of operation
 #define MODE_DISPLAYTEST 0 // mode to cycle through digits slowly

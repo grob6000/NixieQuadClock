@@ -13,16 +13,23 @@
 #include <util/delay.h>
 #include <avr/eeprom.h>
 #include "pins.h"
-//#include "config.h" // configurable parameters for this code
+#include "config.h" // configurable parameters for this code
 #include "nixieclock.h" // other parameters and defines for this code
 #include "uart.h" // parameters and config for uart connection
 #include "sound.h"
 
 // global parameters
+
 uint8_t characters[NUM_DIGITS] = { 0x00 }; // buffer to hold current characters (nixie format)
 uint8_t hour = 0x00; // current hour (0 to 23)
 uint8_t minute = 0x00; // current minute (0 to 59)
 uint8_t second = 0x00; // current second (0 to 59)
+
+#ifdef ENABLE_DATES
+uint8_t day = 0x00; // current day (1 to 31)
+uint8_t month = 0x00; // current month (1 to 12)
+uint8_t year = 0x00; // current year (0 to 99)
+#endif //ENABLE_DATES
 
 #ifdef ENABLE_TIMEZONE
 	uint16_t tz = 0x00;
@@ -48,6 +55,10 @@ uint8_t buttonstate = BUTTONSTATE_NOREPEAT; // the current repeating state of th
 #endif
 
 uint16_t debounceCount = 0xFFFF; // overflow counter for button debouncing (via timer0). diminishing counter, init to large value
+
+#ifdef AUTOOFF
+	uint16_t autooffcount = 0x0000; // seconds counter for auto off timer
+#endif //AUTOOFF
 
 #ifdef ENABLE_EEPROM
 	
@@ -228,21 +239,34 @@ void SetSegments(unsigned char character)
 	}
 #endif //ENABLE_VALIDITYMODE
 
+// displays nothing
+void DisplayBlank()
+{
+	for (uint8_t i = 0; i < NUM_DIGITS; i++)
+	{
+		characters[i] = DIGIT_BLANK;
+	}
+}
+
 // show current time (and any other constant info, e.g. alarm states) on display
 void DisplayTime()
 {
-	#if (NUM_DIGITS >= 4)
-	characters[0] = DIGIT_ENABLE | (hour / 10);
-	characters[1] = DIGIT_ENABLE | (hour % 10);
-	characters[2] = DIGIT_ENABLE | (minute / 10);
-	characters[3] = DIGIT_ENABLE | (minute % 10);
-	#endif
-	#if (NUM_DIGITS >= 6)
-		characters[4] = DIGIT_ENABLE | (second / 10);
-		characters[5] = DIGIT_ENABLE | (second % 10);		
-	#endif
+	#ifdef AUTOOFF
+	if (autooffcount > 0) {
+	#endif //AUTOOFF
 	
-	#ifdef ENABLE_ALARM
+		#if (NUM_DIGITS >= 4)
+		characters[0] = DIGIT_ENABLE | (hour / 10);
+		characters[1] = DIGIT_ENABLE | (hour % 10);
+		characters[2] = DIGIT_ENABLE | (minute / 10);
+		characters[3] = DIGIT_ENABLE | (minute % 10);
+		#endif
+		#if (NUM_DIGITS >= 6)
+		characters[4] = DIGIT_ENABLE | (second / 10);
+		characters[5] = DIGIT_ENABLE | (second % 10);
+		#endif
+		
+		#ifdef ENABLE_ALARM
 		for (uint8_t i = 0; i < ALARM_COUNT; i++)
 		{
 			if (alarm_states & (1<<i))
@@ -250,7 +274,14 @@ void DisplayTime()
 				characters[i] |= COMMAL;
 			}
 		}
+		#endif
+	
+	#ifdef AUTOOFF
+	} else {
+		DisplayBlank();
+	}
 	#endif
+	
 }
 
 #ifdef ENABLE_TIMEZONE
@@ -329,14 +360,7 @@ void DisplayTime()
 #endif //ENABLE_TIMEZONE
 
 
-// displays nothing
-void DisplayBlank()
-{
-	for (uint8_t i = 0; i < NUM_DIGITS; i++)
-	{
-		characters[i] = DIGIT_BLANK;
-	}
-}
+
 
 #ifdef ENABLE_ALARM
 
@@ -418,16 +442,86 @@ void UpdateDisplay()
 	}
 }
 
+#ifdef ENABLE_DATES
+
+unsigned int monthdays[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}; 
+	
+void setDateToYesterday() {
+	if (day == 1) {
+		if (month == 1) {
+			year--;
+			month = 12;
+		} else {
+			month--;
+		}
+		if ((month == 2) && (year % 4 == 0) && (year != 0)) { // leap year
+			day = 29;
+		} else {
+			day = monthdays[month-1]; // ZERO INDEX MONTHDAYS
+		}
+	} else {
+		day--;
+	}
+}
+
+void setDateToTomorrow() {
+	if (day >= monthdays[month-1]) { // > for 29/2 on leap year (follow that through...)
+		if ((day==28) && (month == 2) && (year % 4 == 0) && (year != 0)) { // leap year (but if day=29 we'll roll over still)
+			day = 29;
+		} else {
+			day = 1;
+			month++;
+			if (month>=13) {
+				month = 1;
+			}
+		}
+	}
+}
+
+#endif // ENABLE_DATES
+
 // string received from serial - see uart.h
 void uartReceived(char data[], unsigned int length)
 {
 	if (data[3] == 'R') // indicates this is a "$GPRMC..." message; only message from SKM53 with 'R' in this place
 	{
+		#ifdef AUTOOFF
+		// decrement autooff counter each time a packet is received (1/sec, right?)
+		if (autooffcount > 0) {
+			autooffcount--;
+		}
+		#endif // AUTOOFF
 			
 		// get time from NMEA string
-		hour = (data[7] - '0') * 10 + (data[8] - '0');
-		minute = (data[9] - '0') * 10 +  (data[10] - '0');
-		second = (data[11] - '0') * 10 + (data[12] - '0');
+		unsigned int n = 0;
+		for (unsigned int i = 0; i < length; i++) {
+			if (data[i] == ','){
+				n++;
+			}
+			switch (n) // nth field
+			{
+		    case 1: // utc time stamp
+				if (data[i+1]!=',') { // make sure this is not zero-length (typical if no fix/time)
+					hour = (data[i+1] - '0') * 10 + (data[i+2] - '0');
+					minute = (data[i+3] - '0') * 10 +  (data[i+4] - '0');
+					second = (data[i+5] - '0') * 10 + (data[i+6] - '0');					
+				}
+				break;
+			#ifdef ENABLE_DATES
+		    case 9:
+				if (data[i+1]!=',') { // make sure this is not zero-length (typical if no fix/time)
+					day = (data[i+1] - '0') * 10 + (data[i+2] - '0');
+					month = (data[i+3] - '0') * 10 +  (data[i+4] - '0');
+					year = (data[i+5] - '0') * 10 + (data[i+6] - '0');
+				}
+				break;
+			#endif //ENABLE_DATES
+			}
+		}
+		
+		//hour = (data[7] - '0') * 10 + (data[8] - '0');
+		//minute = (data[9] - '0') * 10 +  (data[10] - '0');
+		//second = (data[11] - '0') * 10 + (data[12] - '0');
 			
 		// apply timezone
 		unsigned int hoursandminutes = (hour * 60) + minute;
@@ -437,6 +531,9 @@ void uartReceived(char data[], unsigned int length)
 			if (hoursandminutes < tz)
 			{
 				hoursandminutes += MINUTESINADAY;
+				#ifdef ENABLE_DATES
+				setDateToYesterday(); // adjust date
+				#endif // ENABLE_DATES
 			}
 			hoursandminutes -= tz;
 		}
@@ -447,6 +544,9 @@ void uartReceived(char data[], unsigned int length)
 			if (hoursandminutes >= MINUTESINADAY)
 			{
 				hoursandminutes -= MINUTESINADAY;
+				#ifdef ENABLE_DATES
+				setDateToTomorrow(); // adjust date
+				#endif //ENABLE_DATES
 			}
 		}
 			
@@ -476,6 +576,9 @@ void uartReceived(char data[], unsigned int length)
 					if (hoursandminutes == alarm_times[i])
 					{
 						beeper_state |= ALARM_ON; // bitwise switch on alarm
+						#ifdef AUTOOFF
+						autooffcount = AUTOOFF_DELAY; // turn display on when alarm goes (proably want to see the time when it beeps!)
+						#endif //AUTOOFF
 					}
 				}
 			}
@@ -558,7 +661,11 @@ ISR(TIMER0_OVF_vect)
 	if (debounceCount == 0x0000) // if counter has hit zero
 	{
 		// ... this is a valid button press
-		
+
+#ifdef AUTOOFF
+        // restart auto-off timer
+		autooffcount = AUTOOFF_DELAY;
+#endif //AUTOOFF		
 		// disable bounce counter
 		TIMER0_CLOCK_NONE();
 		debounceCount = BUTTON_BOUNCECOUNT;

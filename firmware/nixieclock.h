@@ -89,6 +89,7 @@
 
 // function prototypes
 void SetSegments(unsigned char character);
+void DisplayBlank();
 void DisplayTime();
 void DisplayTimeZone();
 void DisplayAlarmState();

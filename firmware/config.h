@@ -19,9 +19,12 @@
 //#define ENABLE_TESTMODE // allows startup test mode
 #define ENABLE_EEPROM // implements saving setting to eeprom
 #define ENABLE_ALARM // implements alarm clock
+//#define ENABLE_DATES // tracks the date from NMEA (only needed if clock can display date)
 #define ALARM_INCREMENT 5 // alarm setting increment, minutes
 #define TZ_INCREMENT 30 // timezone setting increment, minutes
 #define POWERONDELAY 200 // delay at startup to allow power/etc. to settle
+#define AUTOOFF // define to enable auto off (switches off display after a time, turns on with button press)
+#define AUTOOFF_DELAY 300 // time delay (in seconds) for display to switch off
 
 // select sound source
 #define SOUND_BEEPER

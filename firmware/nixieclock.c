@@ -497,25 +497,25 @@ void uartReceived(char data[], unsigned int length)
 		for (unsigned int i = 0; i < length; i++) {
 			if (data[i] == ','){
 				n++;
-			}
-			switch (n) // nth field
-			{
-		    case 1: // utc time stamp
-				if (data[i+1]!=',') { // make sure this is not zero-length (typical if no fix/time)
-					hour = (data[i+1] - '0') * 10 + (data[i+2] - '0');
-					minute = (data[i+3] - '0') * 10 +  (data[i+4] - '0');
-					second = (data[i+5] - '0') * 10 + (data[i+6] - '0');					
+				switch (n) // nth field
+				{
+				case 1: // utc time stamp
+					if (data[i+1]!=',') { // make sure this is not zero-length (typical if no fix/time)
+						hour = (data[i+1] - '0') * 10 + (data[i+2] - '0');
+						minute = (data[i+3] - '0') * 10 +  (data[i+4] - '0');
+						second = (data[i+5] - '0') * 10 + (data[i+6] - '0');					
+					}
+					break;
+				#ifdef ENABLE_DATES
+				case 9:
+					if (data[i+1]!=',') { // make sure this is not zero-length (typical if no fix/time)
+						day = (data[i+1] - '0') * 10 + (data[i+2] - '0');
+						month = (data[i+3] - '0') * 10 +  (data[i+4] - '0');
+						year = (data[i+5] - '0') * 10 + (data[i+6] - '0');
+					}
+					break;
+				#endif //ENABLE_DATES
 				}
-				break;
-			#ifdef ENABLE_DATES
-		    case 9:
-				if (data[i+1]!=',') { // make sure this is not zero-length (typical if no fix/time)
-					day = (data[i+1] - '0') * 10 + (data[i+2] - '0');
-					month = (data[i+3] - '0') * 10 +  (data[i+4] - '0');
-					year = (data[i+5] - '0') * 10 + (data[i+6] - '0');
-				}
-				break;
-			#endif //ENABLE_DATES
 			}
 		}
 		
@@ -662,10 +662,6 @@ ISR(TIMER0_OVF_vect)
 	{
 		// ... this is a valid button press
 
-#ifdef AUTOOFF
-        // restart auto-off timer
-		autooffcount = AUTOOFF_DELAY;
-#endif //AUTOOFF		
 		// disable bounce counter
 		TIMER0_CLOCK_NONE();
 		debounceCount = BUTTON_BOUNCECOUNT;
@@ -678,119 +674,130 @@ ISR(TIMER0_OVF_vect)
 			beeper_state |= ALARM_MUTE;
 			AlarmSoundOff(); // switch off alarm sound
 		}
+		#ifdef AUTOOFF
+		else if (autooffcount == 0) // if the display is off, eat the action
+		{
+			// do nothing! not even beep: someone might be checking time in middle of the night...
+		}
+		#endif //AUTOOFF
 		else
 		{	
 			
-		MakeClick(); // click for button press
+			MakeClick(); // click for button press
 		
-		if (ISLOW(BUTTONA))
-		{
-			// alarm button press event
-			switch (currentmode)
+			if (ISLOW(BUTTONA))
 			{
-				case MODE_SHOWTIME:
-#ifdef ENABLE_VALIDITYMODE
-				case MODE_INVALIDFIX:
-#endif //ENABLE_VALIDITYMODE
-					// enter alarm setup
-					currentmode = MODE_SELECTALARM;
-					StartMenuTimeout();
-					break;
-#ifdef ENABLE_TIMEZONE
-				case MODE_SETTIMEZONE:
-					// decrease timezone
-					TzDown();
-					StartButtonRepeatTimer(); // bounceable command
-					StartMenuTimeout();
-					break;
-#endif // ENABLE_TIMEZONE
-#ifdef ENABLE_ALARM
-				case MODE_SELECTALARM:
-					// decrease alarm selection
-					if (selectedalarm > 0)
-					{
-						selectedalarm--;
-					}
-					StartButtonRepeatTimer(); // bounceable command
-					StartMenuTimeout();
-					break;
-				case MODE_SETALARMSTATE:
-					// turn alarm off
-					alarm_states &= ~(1<<selectedalarm);
-					StartMenuTimeout();
-					break;
-				case MODE_SETALARMTIME:
-					// decrease alarm time
-					if (alarm_times[selectedalarm] < ALARM_INCREMENT)
-					{
-						alarm_times[selectedalarm] = MINUTESINADAY - ALARM_INCREMENT;
-					}
-					else
-					{
-						alarm_times[selectedalarm] -= ALARM_INCREMENT;
-					}
-					StartMenuTimeout();
-					StartButtonRepeatTimer(); // bounceable command
-					break;
-#endif //ENABLE_ALARM
-				default:
-					currentmode = MODE_SHOWTIME;
-					break;
+				// alarm button press event
+				switch (currentmode)
+				{
+					case MODE_SHOWTIME:
+					#ifdef ENABLE_VALIDITYMODE
+					case MODE_INVALIDFIX:
+					#endif //ENABLE_VALIDITYMODE
+						// enter alarm setup
+						currentmode = MODE_SELECTALARM;
+						StartMenuTimeout();
+						break;
+					#ifdef ENABLE_TIMEZONE
+					case MODE_SETTIMEZONE:
+						// decrease timezone
+						TzDown();
+						StartButtonRepeatTimer(); // bounceable command
+						StartMenuTimeout();
+						break;
+					#endif // ENABLE_TIMEZONE
+					#ifdef ENABLE_ALARM
+					case MODE_SELECTALARM:
+						// decrease alarm selection
+						if (selectedalarm > 0)
+						{
+							selectedalarm--;
+						}
+						StartButtonRepeatTimer(); // bounceable command
+						StartMenuTimeout();
+						break;
+					case MODE_SETALARMSTATE:
+						// turn alarm off
+						alarm_states &= ~(1<<selectedalarm);
+						StartMenuTimeout();
+						break;
+					case MODE_SETALARMTIME:
+						// decrease alarm time
+						if (alarm_times[selectedalarm] < ALARM_INCREMENT)
+						{
+							alarm_times[selectedalarm] = MINUTESINADAY - ALARM_INCREMENT;
+						}
+						else
+						{
+							alarm_times[selectedalarm] -= ALARM_INCREMENT;
+						}
+						StartMenuTimeout();
+						StartButtonRepeatTimer(); // bounceable command
+						break;
+					#endif //ENABLE_ALARM
+					default:
+						currentmode = MODE_SHOWTIME;
+						break;
+				}
+				UpdateDisplay(); // update display in any case!	
 			}
-			UpdateDisplay(); // update display in any case!	
-		}
-		else if (ISLOW(BUTTONB))
-		{	
-			// timezone button press event
-			switch (currentmode)
-			{
-				case MODE_SHOWTIME:
-#ifdef ENABLE_VALIDITYMODE
-				case MODE_INVALIDFIX:
-#endif // ENABLE_VALIDITYMODE
-					// enter timezone setup
-					currentmode = MODE_SETTIMEZONE;
-					StartMenuTimeout();
-					break;
-#ifdef ENABLE_TIMEZONE
-				case MODE_SETTIMEZONE:
-					// increase timezone
-					TzUp();
-					StartButtonRepeatTimer(); // bounceable command
-					StartMenuTimeout();
-					break;
-#endif // ENABLE_TIMEZONE
-#ifdef ENABLE_ALARM
-				case MODE_SELECTALARM:
-					// increase alarm selection
-					selectedalarm++;
-					if (selectedalarm >= ALARM_COUNT)
-					{
-						selectedalarm = ALARM_COUNT - 1;
-					}
-					StartButtonRepeatTimer(); // bounceable command
-					StartMenuTimeout();
-					break;
-				case MODE_SETALARMSTATE:
-					// turn alarm on
-					alarm_states |= (1<<selectedalarm);
-					StartMenuTimeout();
-					break;
-				case MODE_SETALARMTIME:
-					// increase alarm time
-					alarm_times[selectedalarm] += ALARM_INCREMENT;
-					alarm_times[selectedalarm] %= MINUTESINADAY;
-					StartButtonRepeatTimer(); // bounceable command
-					StartMenuTimeout();
-					break;
-#endif //ENABLE_ALARM
-				default:
-					currentmode = MODE_SHOWTIME;
-					break;
+			else if (ISLOW(BUTTONB))
+			{	
+				// timezone button press event
+				switch (currentmode)
+				{
+					case MODE_SHOWTIME:
+					#ifdef ENABLE_VALIDITYMODE
+					case MODE_INVALIDFIX:
+					#endif // ENABLE_VALIDITYMODE
+						// enter timezone setup
+						currentmode = MODE_SETTIMEZONE;
+						StartMenuTimeout();
+						break;
+					#ifdef ENABLE_TIMEZONE
+					case MODE_SETTIMEZONE:
+						// increase timezone
+						TzUp();
+						StartButtonRepeatTimer(); // bounceable command
+						StartMenuTimeout();
+						break;
+					#endif // ENABLE_TIMEZONE
+					#ifdef ENABLE_ALARM
+					case MODE_SELECTALARM:
+						// increase alarm selection
+						selectedalarm++;
+						if (selectedalarm >= ALARM_COUNT)
+						{
+							selectedalarm = ALARM_COUNT - 1;
+						}
+						StartButtonRepeatTimer(); // bounceable command
+						StartMenuTimeout();
+						break;
+					case MODE_SETALARMSTATE:
+						// turn alarm on
+						alarm_states |= (1<<selectedalarm);
+						StartMenuTimeout();
+						break;
+					case MODE_SETALARMTIME:
+						// increase alarm time
+						alarm_times[selectedalarm] += ALARM_INCREMENT;
+						alarm_times[selectedalarm] %= MINUTESINADAY;
+						StartButtonRepeatTimer(); // bounceable command
+						StartMenuTimeout();
+						break;
+					#endif //ENABLE_ALARM
+					default:
+						currentmode = MODE_SHOWTIME;
+						break;
+				}
+				UpdateDisplay(); // update display in any case!			
 			}
-			UpdateDisplay(); // update display in any case!			
 		}
-		}
+		
+		#ifdef AUTOOFF
+		autooffcount = AUTOOFF_DELAY; // reset auto off counter (any valid press)
+		#endif //AUTOOFF
+		
 	}
 }
 

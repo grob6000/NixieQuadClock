@@ -57,7 +57,7 @@ uint8_t buttonstate = BUTTONSTATE_NOREPEAT; // the current repeating state of th
 uint16_t debounceCount = 0xFFFF; // overflow counter for button debouncing (via timer0). diminishing counter, init to large value
 
 #ifdef AUTOOFF
-	uint16_t autooffcount = 0x0000; // seconds counter for auto off timer
+	uint16_t autooffcount = AUTOOFF_DELAY; // seconds counter for auto off timer; on boot starts with display active
 #endif //AUTOOFF
 
 #ifdef ENABLE_EEPROM

@@ -24,7 +24,9 @@
 #define TZ_INCREMENT 30 // timezone setting increment, minutes
 #define POWERONDELAY 200 // delay at startup to allow power/etc. to settle
 #define AUTOOFF // define to enable auto off (switches off display after a time, turns on with button press)
-#define AUTOOFF_DELAY 300 // time delay (in seconds) for display to switch off
+#define AUTOOFF_DELAY 30 // time delay (in seconds) for display to switch off
+#define AUTOOFF_HM_OFF (6*60) // time, in minutes-since-midnight, that autooff will be turned off
+#define AUTOOFF_HM_ON (18*60) // time, in minutes-since-midnight, that autoff will be turned on
 
 // select sound source
 #define SOUND_BEEPER

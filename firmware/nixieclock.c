@@ -550,8 +550,12 @@ void uartReceived(char data[], unsigned int length)
 		
 		#ifdef AUTOOFF
 		// decrement autooff counter each time a packet is received (1/sec, right?)
-		if ((autooffcount > 0) && ((hoursandminutes < AUTOOFF_HM_OFF) || (hoursandminutes > AUTOOFF_HM_ON))) {
-			autooffcount--;
+		if ((hoursandminutes < AUTOOFF_HM_OFF) || (hoursandminutes > AUTOOFF_HM_ON)) {
+			if (autooffcount > 0) {
+				autooffcount--;
+			}
+		} else {
+			autooffcount = AUTOOFF_DELAY;
 		}
 		#endif // AUTOOFF
 		
